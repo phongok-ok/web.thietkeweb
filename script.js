@@ -23,7 +23,7 @@ function makeImgs(mainUrl, altUrls = []) {
   return [mainUrl, ...altUrls];
 }
 
-const products = [
+let products = [
   { id:1, brand:'iphone', name:'iPhone 16 Pro Max 256GB', chip:'A18 Pro', ram:'8GB', rom:'256GB', battery:'4685mAh', camera:'48MP+12MP+12MP (Triple)', price:34990000, oldPrice:37990000, discount:8, rating:5, ratingCount:2841, stock:'Còn hàng', badge:['VN/A'], hot:true, condition:'VN/A', screen:'6.9" Super Retina XDR OLED', os:'iOS 18', colors:['Titan Đen','Titan Trắng','Titan Sa Mạc','Titan Tự Nhiên'], gaming:'Xuất Sắc', stockCount:42,
     img:'images/id1.png',
     imgs:['images/id1.png', 'images/id1-1.png', 'images/id1-2.png'] },
@@ -254,7 +254,12 @@ const products = [
   { id:72, brand:'poco', name:'POCO F5 8GB+256GB', chip:'Snapdragon 7+ Gen 2', ram:'8GB', rom:'256GB', battery:'5000mAh', camera:'64MP+8MP+2MP (Triple)', price:6490000, oldPrice:8990000, discount:28, rating:4.7, ratingCount:1567, stock:'Còn hàng', badge:['Chính Hãng VN','SALE'], condition:'Chính Hãng VN', screen:'6.67" Flow AMOLED 120Hz', os:'Android 13 / MIUI 14', colors:['Black','White','Blue'], gaming:'Rất Cao', stockCount:36,
     img:'images/id72.png',
     imgs:['images/id72.png', 'images/id72-1.png', 'images/id72-2.png'] }
-]
+];
+const defaultProducts = products.map(product => ({ ...product }));
+products = window.TechNova ? window.TechNova.data.loadProducts(defaultProducts) : products;
+const defaultBrands = ['iphone', 'samsung', 'redmi', 'poco'];
+let brands = window.TechNova ? window.TechNova.data.loadBrands(defaultBrands) : defaultBrands.map(id => ({ id, name: id, active: true }));
+let orders = window.TechNova ? window.TechNova.data.loadOrders() : [];
   
 /* ==================== FLASH SALE PRODUCTS ==================== */
 const flashSaleIds = [5,6,7,23,46,50,67,72,10,11];
@@ -517,6 +522,7 @@ function renderProducts() {
 function renderFlashSale() {
   const grid = document.getElementById('flashGrid');
   if (!grid) return;
+  grid.innerHTML = '';
   const flashProducts = products.filter(p => flashSaleIds.includes(p.id));
   flashProducts.forEach(p => grid.appendChild(createProductCard(p)));
   setTimeout(triggerReveal, 50);
@@ -526,6 +532,7 @@ function renderFlashSale() {
 function renderBestseller() {
   const grid = document.getElementById('bestsellerGrid');
   if (!grid) return;
+  grid.innerHTML = '';
   const bsProducts = products.filter(p => bestsellerIds.includes(p.id));
   bsProducts.forEach((p, i) => {
     const rankClass = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'rank-other';
@@ -703,6 +710,563 @@ function initProductModal() {
   });
 }
 
+/* ==================== AUTH & ADMIN ==================== */
+function getAuthApi() {
+  return window.TechNova && window.TechNova.auth ? window.TechNova.auth : null;
+}
+
+function getDataApi() {
+  return window.TechNova && window.TechNova.data ? window.TechNova.data : null;
+}
+
+function openAuthModal(tab = 'login') {
+  const modal = document.getElementById('authModal');
+  const overlay = document.getElementById('authOverlay');
+  if (!modal || !overlay) return;
+  setAuthTab(tab);
+  refreshAuthUI();
+  modal.classList.add('open');
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeAuthModal() {
+  const modal = document.getElementById('authModal');
+  const overlay = document.getElementById('authOverlay');
+  if (!modal || !overlay) return;
+  modal.classList.remove('open');
+  overlay.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function setAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.authTab === tab);
+  });
+  document.querySelectorAll('.auth-form').forEach(form => {
+    form.classList.toggle('active', form.id === `${tab}Form`);
+  });
+}
+
+function refreshAuthUI() {
+  const auth = getAuthApi();
+  if (!auth) return;
+  const user = auth.getCurrentUser();
+  const accountLabel = document.getElementById('accountLabel');
+  const adminSection = document.getElementById('admin');
+  const adminNavLink = document.getElementById('adminNavLink');
+  const userCard = document.getElementById('authUserCard');
+  const loginForm = document.getElementById('loginForm');
+  const registerForm = document.getElementById('registerForm');
+  const tabs = document.querySelector('.auth-tabs');
+
+  if (accountLabel) accountLabel.textContent = user ? user.name : 'Đăng nhập';
+  const isAdmin = auth.isAdmin();
+  if (adminSection) adminSection.hidden = !isAdmin;
+  if (adminNavLink) adminNavLink.hidden = !isAdmin;
+
+  if (userCard) {
+    userCard.hidden = !user;
+    document.getElementById('authUserName').textContent = user ? user.name : '';
+    document.getElementById('authUserRole').textContent = user ? (user.role === 'admin' ? 'Quản trị viên' : 'Khách hàng') : '';
+  }
+  if (loginForm) loginForm.hidden = Boolean(user);
+  if (registerForm) registerForm.hidden = Boolean(user);
+  if (tabs) tabs.hidden = Boolean(user);
+  if (isAdmin) renderAdminDashboard();
+}
+
+function initAuth() {
+  const auth = getAuthApi();
+  if (!auth) return;
+
+  document.getElementById('accountToggle')?.addEventListener('click', () => openAuthModal('login'));
+  document.getElementById('authClose')?.addEventListener('click', closeAuthModal);
+  document.getElementById('authOverlay')?.addEventListener('click', closeAuthModal);
+  document.querySelectorAll('.auth-tab').forEach(btn => {
+    btn.addEventListener('click', () => setAuthTab(btn.dataset.authTab));
+  });
+
+  document.getElementById('loginForm')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const result = auth.login(
+      document.getElementById('loginEmail').value,
+      document.getElementById('loginPassword').value
+    );
+    if (!result.ok) {
+      showToast(result.message);
+      return;
+    }
+    showToast(`Xin chào ${result.user.name}!`);
+    closeAuthModal();
+    refreshAuthUI();
+  });
+
+  document.getElementById('registerForm')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const result = auth.register({
+      name: document.getElementById('registerName').value,
+      email: document.getElementById('registerEmail').value,
+      phone: document.getElementById('registerPhone').value,
+      password: document.getElementById('registerPassword').value,
+    });
+    if (!result.ok) {
+      showToast(result.message);
+      return;
+    }
+    showToast(`Tạo tài khoản thành công, ${result.user.name}!`);
+    closeAuthModal();
+    refreshAuthUI();
+  });
+
+  document.getElementById('logoutBtn')?.addEventListener('click', () => {
+    auth.logout();
+    closeAuthModal();
+    refreshAuthUI();
+    showToast('Đã đăng xuất.');
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeAuthModal();
+  });
+
+  refreshAuthUI();
+}
+
+function renderAllProductViews() {
+  displayedCount = PAGE_SIZE;
+  renderBrandFilters();
+  renderFlashSale();
+  renderProducts();
+  renderBestseller();
+  renderAdminDashboard();
+}
+
+function renderBrandFilters() {
+  const bar = document.getElementById('brandFilterBar');
+  if (!bar) return;
+  const allActive = currentFilter === 'all' ? ' active' : '';
+  const brandButtons = brands.map(brand => {
+    const active = currentFilter === brand.id ? ' active' : '';
+    const logo = brand.logo ? `<img src="${brand.logo}" alt="${brand.name}" class="brand-icon" onerror="this.style.display='none'" />` : '';
+    return `<button class="filter-btn${active}" data-brand="${brand.id}">${logo}${brand.name}</button>`;
+  }).join('');
+  bar.innerHTML = `<button class="filter-btn${allActive}" data-brand="all">Tất Cả</button>${brandButtons}`;
+}
+
+function productFromAdminForm() {
+  const oldPrice = Number(document.getElementById('adminProductOldPrice').value || 0);
+  const price = Number(document.getElementById('adminProductPrice').value || 0);
+  const discount = oldPrice > price && oldPrice > 0 ? Math.round((1 - price / oldPrice) * 100) : undefined;
+  const img = document.getElementById('adminProductImage').value.trim() || 'images/id1.png';
+  const brand = document.getElementById('adminProductBrand').value;
+  const condition = brand === 'redmi' || brand === 'poco' ? 'Chính Hãng VN' : 'VN/A';
+
+  return {
+    id: Number(document.getElementById('adminProductId').value || 0) || undefined,
+    name: document.getElementById('adminProductName').value,
+    brand,
+    price,
+    oldPrice: oldPrice || undefined,
+    discount,
+    ram: document.getElementById('adminProductRam').value || '8GB',
+    rom: document.getElementById('adminProductRom').value || '128GB',
+    chip: document.getElementById('adminProductChip').value || 'Đang cập nhật',
+    stock: document.getElementById('adminProductStock').value,
+    stockCount: Number(document.getElementById('adminProductStockCount').value || 10),
+    img,
+    imgs: [img],
+    camera: document.getElementById('adminProductCamera').value || 'Đang cập nhật',
+    screen: document.getElementById('adminProductScreen').value || 'Đang cập nhật',
+    battery: '5000mAh',
+    os: brand === 'iphone' ? 'iOS 18' : 'Android / HyperOS',
+    badge: [condition],
+    condition,
+    colors: ['Đen', 'Trắng'],
+    gaming: 'Cao',
+    rating: 4.8,
+    ratingCount: 0,
+  };
+}
+
+function resetAdminForm() {
+  const form = document.getElementById('adminProductForm');
+  if (!form) return;
+  form.reset();
+  document.getElementById('adminProductId').value = '';
+  document.getElementById('adminFormTitle').textContent = 'Thêm sản phẩm';
+  document.getElementById('adminProductBrand').value = 'iphone';
+  document.getElementById('adminProductStock').value = 'Còn hàng';
+}
+
+function fillAdminForm(product) {
+  document.getElementById('adminProductId').value = product.id;
+  document.getElementById('adminFormTitle').textContent = 'Sửa sản phẩm';
+  document.getElementById('adminProductName').value = product.name || '';
+  document.getElementById('adminProductBrand').value = product.brand || 'iphone';
+  document.getElementById('adminProductPrice').value = product.price || '';
+  document.getElementById('adminProductOldPrice').value = product.oldPrice || '';
+  document.getElementById('adminProductRam').value = product.ram || '';
+  document.getElementById('adminProductRom').value = product.rom || '';
+  document.getElementById('adminProductChip').value = product.chip || '';
+  document.getElementById('adminProductStock').value = product.stock || 'Còn hàng';
+  document.getElementById('adminProductStockCount').value = product.stockCount || '';
+  document.getElementById('adminProductImage').value = product.img || '';
+  document.getElementById('adminProductCamera').value = product.camera || '';
+  document.getElementById('adminProductScreen').value = product.screen || '';
+  document.getElementById('adminProductName').focus();
+}
+
+function renderAdminDashboard() {
+  const auth = getAuthApi();
+  if (!auth || !auth.isAdmin()) return;
+
+  const rows = document.getElementById('adminProductRows');
+  if (!rows) return;
+  renderAdminBrandOptions();
+  const query = (document.getElementById('adminSearch')?.value || '').trim().toLowerCase();
+  const filteredProducts = products.filter(product =>
+    !query ||
+    product.name.toLowerCase().includes(query) ||
+    product.brand.toLowerCase().includes(query)
+  );
+
+  document.getElementById('adminTotalProducts').textContent = products.length.toLocaleString('vi-VN');
+  document.getElementById('adminTotalBrands').textContent = new Set(products.map(product => product.brand)).size;
+  document.getElementById('adminTotalStock').textContent = products.reduce((sum, product) => sum + (Number(product.stockCount) || 0), 0).toLocaleString('vi-VN');
+  document.getElementById('adminTotalValue').textContent = formatPrice(products.reduce((sum, product) => sum + ((Number(product.price) || 0) * (Number(product.stockCount) || 0)), 0));
+
+  rows.innerHTML = filteredProducts.map(product => `
+    <tr>
+      <td>
+        <div class="admin-product-cell">
+          <img src="${product.img || FALLBACK_IMG}" alt="${product.name}" onerror="this.src='${FALLBACK_IMG}'" />
+          <div>
+            <strong>${product.name}</strong>
+            <small>ID ${product.id} · ${product.ram || ''}/${product.rom || ''}</small>
+          </div>
+        </div>
+      </td>
+      <td>${product.brand.toUpperCase()}</td>
+      <td>${formatPrice(product.price || 0)}</td>
+      <td>${product.stockCount || 0} · ${product.stock}</td>
+      <td>
+        <div class="admin-row-actions">
+          <button class="admin-icon-btn" data-admin-edit="${product.id}" title="Sửa">✎</button>
+          <button class="admin-icon-btn danger" data-admin-delete="${product.id}" title="Xóa">✕</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+  renderAdminBrands();
+  renderAdminUsers();
+  renderAdminRevenue();
+}
+
+function renderAdminBrandOptions() {
+  const select = document.getElementById('adminProductBrand');
+  if (!select) return;
+  const currentValue = select.value;
+  select.innerHTML = brands.map(brand => `<option value="${brand.id}">${brand.name}</option>`).join('');
+  if (brands.some(brand => brand.id === currentValue)) select.value = currentValue;
+}
+
+function renderAdminBrands() {
+  const rows = document.getElementById('adminBrandRows');
+  if (!rows) return;
+  rows.innerHTML = brands.map(brand => {
+    const count = products.filter(product => product.brand === brand.id).length;
+    return `
+      <tr>
+        <td>
+          <div class="admin-product-cell">
+            ${brand.logo ? `<img src="${brand.logo}" alt="${brand.name}" onerror="this.style.display='none'" />` : ''}
+            <strong>${brand.name}</strong>
+          </div>
+        </td>
+        <td>${brand.id}</td>
+        <td>${count}</td>
+        <td><div class="admin-row-actions">
+          <button class="admin-icon-btn" data-brand-edit="${brand.id}" title="Sửa">✎</button>
+          <button class="admin-icon-btn danger" data-brand-delete="${brand.id}" title="Xóa">✕</button>
+        </div></td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function resetUserForm() {
+  document.getElementById('adminUserForm')?.reset();
+  document.getElementById('adminUserId').value = '';
+  document.getElementById('adminUserFormTitle').textContent = 'Thêm user';
+  document.getElementById('adminUserRole').value = 'customer';
+}
+
+function fillUserForm(user) {
+  document.getElementById('adminUserId').value = user.id;
+  document.getElementById('adminUserFormTitle').textContent = 'Sửa user';
+  document.getElementById('adminUserName').value = user.name || '';
+  document.getElementById('adminUserEmail').value = user.email || '';
+  document.getElementById('adminUserPhone').value = user.phone || '';
+  document.getElementById('adminUserPassword').value = '';
+  document.getElementById('adminUserRole').value = user.role || 'customer';
+}
+
+function renderAdminUsers() {
+  const auth = getAuthApi();
+  const rows = document.getElementById('adminUserRows');
+  if (!auth || !rows) return;
+  const users = auth.getUsers();
+  rows.innerHTML = users.map(user => `
+    <tr>
+      <td><strong>${user.name}</strong><br/><small>${user.email}</small></td>
+      <td>${user.role === 'admin' ? 'Admin' : 'Khách hàng'}</td>
+      <td>${new Date(user.createdAt).toLocaleDateString('vi-VN')}</td>
+      <td><div class="admin-row-actions">
+        <button class="admin-icon-btn" data-user-edit="${user.id}" title="Sửa">✎</button>
+        <button class="admin-icon-btn danger" data-user-delete="${user.id}" title="Xóa">✕</button>
+      </div></td>
+    </tr>
+  `).join('');
+}
+
+function inSelectedRange(date, range) {
+  const now = new Date();
+  const target = new Date(date);
+  if (range === 'year') return target.getFullYear() === now.getFullYear();
+  if (range === 'month') return target.getFullYear() === now.getFullYear() && target.getMonth() === now.getMonth();
+  return target.toDateString() === now.toDateString();
+}
+
+function renderAdminRevenue() {
+  const rows = document.getElementById('adminOrderRows');
+  if (!rows) return;
+  const range = document.getElementById('adminRevenueRange')?.value || 'day';
+  const scopedOrders = orders.filter(order => inSelectedRange(order.createdAt, range));
+  const subtotal = scopedOrders.reduce((sum, order) => sum + Number(order.subtotal || 0), 0);
+  const vat = scopedOrders.reduce((sum, order) => sum + Number(order.vat || 0), 0);
+  const total = scopedOrders.reduce((sum, order) => sum + Number(order.total || 0), 0);
+  document.getElementById('adminRevenueSubtotal').textContent = formatPrice(subtotal);
+  document.getElementById('adminRevenueVat').textContent = formatPrice(vat);
+  document.getElementById('adminRevenueTotal').textContent = formatPrice(total);
+  rows.innerHTML = orders.slice().reverse().map(order => `
+    <tr>
+      <td><strong>${order.id}</strong></td>
+      <td>${order.customerName || 'Khách lẻ'}</td>
+      <td>${new Date(order.createdAt).toLocaleString('vi-VN')}</td>
+      <td>${formatPrice(order.total || 0)}</td>
+      <td><div class="admin-row-actions">
+        <button class="admin-icon-btn" data-print-order="${order.id}" title="In hóa đơn">⎙</button>
+      </div></td>
+    </tr>
+  `).join('');
+}
+
+function printInvoice(orderId) {
+  const order = orders.find(item => item.id === orderId);
+  if (!order) return;
+  const itemRows = order.items.map(item => `
+    <tr>
+      <td>${item.name}</td>
+      <td>${item.qty}</td>
+      <td>${formatPrice(item.price)}</td>
+      <td>${formatPrice(item.price * item.qty)}</td>
+    </tr>
+  `).join('');
+  const html = `
+    <!doctype html><html lang="vi"><head><meta charset="utf-8" />
+    <title>Hóa đơn ${order.id}</title>
+    <style>
+      body{font-family:Arial,sans-serif;color:#111827;padding:32px}
+      h1{margin:0 0 4px} table{width:100%;border-collapse:collapse;margin-top:20px}
+      th,td{border-bottom:1px solid #e5e7eb;text-align:left;padding:10px}
+      .totals{margin-top:20px;margin-left:auto;width:320px}.row{display:flex;justify-content:space-between;padding:6px 0}
+      .total{font-size:20px;font-weight:700}.meta{color:#6b7280}
+    </style></head><body>
+      <h1>TECHNOVA</h1>
+      <div class="meta">Hóa đơn: ${order.id}</div>
+      <div class="meta">Ngày: ${new Date(order.createdAt).toLocaleString('vi-VN')}</div>
+      <div class="meta">Khách hàng: ${order.customerName || 'Khách lẻ'} ${order.customerEmail ? `(${order.customerEmail})` : ''}</div>
+      <table><thead><tr><th>Sản phẩm</th><th>SL</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead><tbody>${itemRows}</tbody></table>
+      <div class="totals">
+        <div class="row"><span>Tạm tính</span><strong>${formatPrice(order.subtotal)}</strong></div>
+        <div class="row"><span>VAT ${Math.round((order.vatRate || 0.1) * 100)}%</span><strong>${formatPrice(order.vat)}</strong></div>
+        <div class="row total"><span>Tổng cộng</span><strong>${formatPrice(order.total)}</strong></div>
+      </div>
+      <script>window.print();<\/script>
+    </body></html>
+  `;
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    showToast('Trình duyệt đã chặn cửa sổ in.');
+    return;
+  }
+  printWindow.document.write(html);
+  printWindow.document.close();
+}
+
+function openPaymentSuccess(order) {
+  const modal = document.getElementById('successModal');
+  const overlay = document.getElementById('successOverlay');
+  if (!modal || !overlay || !order) return;
+  modal.dataset.orderId = order.id;
+  document.getElementById('successOrderId').textContent = order.id;
+  document.getElementById('successSubtotal').textContent = formatPrice(order.subtotal || 0);
+  document.getElementById('successVat').textContent = formatPrice(order.vat || 0);
+  document.getElementById('successTotal').textContent = formatPrice(order.total || 0);
+  modal.classList.add('open');
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closePaymentSuccess() {
+  document.getElementById('successModal')?.classList.remove('open');
+  document.getElementById('successOverlay')?.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function initAdmin() {
+  const dataApi = getDataApi();
+  if (!dataApi) return;
+
+  document.getElementById('adminProductForm')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const product = productFromAdminForm();
+    if (!product.name || !product.price) {
+      showToast('Vui lòng nhập tên và giá sản phẩm.');
+      return;
+    }
+    products = dataApi.upsertProduct(products, product);
+    dataApi.saveProducts(products);
+    resetAdminForm();
+    renderAllProductViews();
+    showToast('Đã lưu sản phẩm.');
+  });
+
+  document.getElementById('adminCancelEdit')?.addEventListener('click', resetAdminForm);
+  document.getElementById('adminNewProduct')?.addEventListener('click', () => {
+    resetAdminForm();
+    document.getElementById('adminProductName')?.focus();
+  });
+  document.getElementById('adminSearch')?.addEventListener('input', renderAdminDashboard);
+  document.getElementById('adminResetData')?.addEventListener('click', () => {
+    products = defaultProducts.map(product => ({ ...product }));
+    dataApi.saveProducts(products);
+    resetAdminForm();
+    renderAllProductViews();
+    showToast('Đã khôi phục dữ liệu gốc.');
+  });
+  document.getElementById('adminProductRows')?.addEventListener('click', (event) => {
+    const editBtn = event.target.closest('[data-admin-edit]');
+    const deleteBtn = event.target.closest('[data-admin-delete]');
+    if (editBtn) {
+      const product = products.find(item => Number(item.id) === Number(editBtn.dataset.adminEdit));
+      if (product) fillAdminForm(product);
+    }
+    if (deleteBtn) {
+      products = dataApi.deleteProduct(products, deleteBtn.dataset.adminDelete);
+      dataApi.saveProducts(products);
+      renderAllProductViews();
+      showToast('Đã xóa sản phẩm.');
+    }
+  });
+
+  document.querySelectorAll('.admin-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.admin-tab').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.admin-panel').forEach(panel => panel.classList.remove('active'));
+      tab.classList.add('active');
+      document.querySelector(`[data-admin-panel-id="${tab.dataset.adminPanel}"]`)?.classList.add('active');
+      renderAdminDashboard();
+    });
+  });
+
+  document.getElementById('adminBrandForm')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const dataApi = getDataApi();
+    const name = document.getElementById('adminBrandName').value;
+    const logo = document.getElementById('adminBrandLogo').value;
+    brands = dataApi.upsertBrand(brands, { name, logo });
+    dataApi.saveBrands(brands);
+    document.getElementById('adminBrandForm').reset();
+    renderBrandFilters();
+    renderAdminDashboard();
+    showToast('Đã lưu hãng.');
+  });
+  document.getElementById('adminBrandRows')?.addEventListener('click', (event) => {
+    const editBtn = event.target.closest('[data-brand-edit]');
+    const deleteBtn = event.target.closest('[data-brand-delete]');
+    const dataApi = getDataApi();
+    if (editBtn) {
+      const brand = brands.find(item => item.id === editBtn.dataset.brandEdit);
+      if (brand) {
+        document.getElementById('adminBrandName').value = brand.name;
+        document.getElementById('adminBrandLogo').value = brand.logo || '';
+      }
+    }
+    if (deleteBtn) {
+      const brandId = deleteBtn.dataset.brandDelete;
+      if (products.some(product => product.brand === brandId)) {
+        showToast('Không thể xóa hãng đang có sản phẩm.');
+        return;
+      }
+      brands = dataApi.deleteBrand(brands, brandId);
+      dataApi.saveBrands(brands);
+      renderAdminDashboard();
+    }
+  });
+
+  document.getElementById('adminUserForm')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const auth = getAuthApi();
+    const users = auth.getUsers();
+    const nextUsers = auth.upsertUser(users, {
+      id: document.getElementById('adminUserId').value || undefined,
+      name: document.getElementById('adminUserName').value,
+      email: document.getElementById('adminUserEmail').value,
+      phone: document.getElementById('adminUserPhone').value,
+      password: document.getElementById('adminUserPassword').value || undefined,
+      role: document.getElementById('adminUserRole').value,
+    });
+    auth.saveUsers(nextUsers);
+    resetUserForm();
+    refreshAuthUI();
+    renderAdminDashboard();
+    showToast('Đã lưu user.');
+  });
+  document.getElementById('adminCancelUserEdit')?.addEventListener('click', resetUserForm);
+  document.getElementById('adminUserRows')?.addEventListener('click', (event) => {
+    const editBtn = event.target.closest('[data-user-edit]');
+    const deleteBtn = event.target.closest('[data-user-delete]');
+    const auth = getAuthApi();
+    if (editBtn) {
+      const user = auth.getUsers().find(item => item.id === editBtn.dataset.userEdit);
+      if (user) fillUserForm(user);
+    }
+    if (deleteBtn) {
+      const nextUsers = auth.deleteUser(auth.getUsers(), deleteBtn.dataset.userDelete);
+      auth.saveUsers(nextUsers);
+      resetUserForm();
+      refreshAuthUI();
+      renderAdminDashboard();
+      showToast('Đã xóa user nếu hợp lệ.');
+    }
+  });
+  document.getElementById('adminRevenueRange')?.addEventListener('change', renderAdminRevenue);
+  document.getElementById('adminOrderRows')?.addEventListener('click', (event) => {
+    const printBtn = event.target.closest('[data-print-order]');
+    if (printBtn) printInvoice(printBtn.dataset.printOrder);
+  });
+
+  document.getElementById('successClose')?.addEventListener('click', closePaymentSuccess);
+  document.getElementById('successOverlay')?.addEventListener('click', closePaymentSuccess);
+  document.getElementById('successContinue')?.addEventListener('click', closePaymentSuccess);
+  document.getElementById('successPrintInvoice')?.addEventListener('click', () => {
+    const orderId = document.getElementById('successModal')?.dataset.orderId;
+    if (orderId) printInvoice(orderId);
+  });
+}
+
 /* ==================== CART FUNCTIONS ==================== */
 function saveCart() {
   localStorage.setItem('technova_cart', JSON.stringify(cart));
@@ -809,9 +1373,25 @@ function initCartToggle() {
   overlay && overlay.addEventListener('click', closeCart);
   clearBtn && clearBtn.addEventListener('click', clearCart);
   checkoutBtn && checkoutBtn.addEventListener('click', () => {
-    showToast('🎉 Đặt hàng thành công! TechNova sẽ liên hệ bạn sớm.');
+    if (cart.length === 0) {
+      showToast('Giỏ hàng đang trống.');
+      return;
+    }
+    const auth = getAuthApi();
+    const data = getDataApi();
+    const user = auth ? auth.getCurrentUser() : null;
+    const order = data ? data.createOrder({
+      customerName: user ? user.name : 'Khách lẻ',
+      customerEmail: user ? user.email : '',
+      items: cart.map(item => ({ ...item })),
+      vatRate: 0.1,
+    }) : null;
+    orders = data ? data.loadOrders() : orders;
     clearCart();
     closeCart();
+    renderAdminDashboard();
+    if (order) openPaymentSuccess(order);
+    else showToast('Thanh toán thành công!');
   });
 }
 
@@ -883,14 +1463,16 @@ function initSearch() {
 
 /* ==================== FILTER ==================== */
 function initFilter() {
-  document.querySelectorAll('.filter-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      currentFilter = btn.dataset.brand;
-      displayedCount = PAGE_SIZE;
-      renderProducts();
-    });
+  renderBrandFilters();
+  const brandFilterBar = document.getElementById('brandFilterBar');
+  brandFilterBar && brandFilterBar.addEventListener('click', (event) => {
+    const btn = event.target.closest('.filter-btn');
+    if (!btn) return;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.brand;
+    displayedCount = PAGE_SIZE;
+    renderProducts();
   });
 
   const loadMoreBtn = document.getElementById('loadMoreBtn');
@@ -997,6 +1579,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initCartToggle();
   initCountdown();
   initProductModal(); // MỚI THÊM
+  initAuth();
+  initAdmin();
 
   // Render data
   renderFlashSale();

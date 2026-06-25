@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
 </head>
 <body>
 
@@ -38,9 +38,14 @@
         <li><a href="#bestseller">Bán Chạy</a></li>
         <li><a href="#reviews">Đánh Giá</a></li>
         <li><a href="#faq">FAQ</a></li>
+        <li><a href="#admin" id="adminNavLink" class="admin-only" hidden>Admin</a></li>
         <li><a href="#contact">Liên Hệ</a></li>
       </ul>
       <div class="nav-actions">
+        <button class="nav-account-btn" id="accountToggle" aria-label="Tài khoản">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>
+          <span id="accountLabel">Đăng nhập</span>
+        </button>
         <button class="nav-search-btn" id="searchToggle" aria-label="Tìm kiếm">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </button>
@@ -158,20 +163,8 @@
       <div class="section-label">📱 Danh Mục Sản Phẩm</div>
       <h2 class="section-title">Tất Cả <span class="glow-text">Điện Thoại</span></h2>
       <!-- Brand Filter -->
-      <div class="filter-bar">
-        <button class="filter-btn active" data-brand="all">Tất Cả</button>
-        <button class="filter-btn" data-brand="iphone">
-          <img src="https://cdn-icons-png.flaticon.com/512/0/747.png" alt="Apple" class="brand-icon" />iPhone
-        </button>
-        <button class="filter-btn" data-brand="samsung">
-          <img src="images/ss.png" alt="Samsung" class="brand-icon" />Samsung
-        </button>
-        <button class="filter-btn" data-brand="redmi">
-          <img src="images/redmi.png" alt="Redmi" class="brand-icon" />Redmi
-        </button>
-        <button class="filter-btn" data-brand="poco">
-          <img src="images/poco.png" alt="POCO" class="brand-icon" />POCO
-        </button>
+      <div class="filter-bar" id="brandFilterBar">
+        <!-- Injected by JS -->
       </div>
       <!-- Products Grid -->
       <div class="products-grid" id="productsGrid">
@@ -361,6 +354,222 @@
     </div>
   </section>
 
+  <!-- ===================== ADMIN DASHBOARD ===================== -->
+  <section id="admin" class="section admin-section reveal" hidden>
+    <div class="container">
+      <div class="admin-shell">
+        <div class="admin-header">
+          <div>
+            <div class="section-label">Quản trị TechNova</div>
+            <h2 class="section-title">Bảng Điều Khiển <span class="glow-text">Admin</span></h2>
+          </div>
+          <div class="admin-actions">
+            <button class="btn-outline" id="adminResetData">Khôi phục dữ liệu</button>
+            <button class="btn-primary" id="adminNewProduct"><span>Thêm sản phẩm</span></button>
+          </div>
+        </div>
+
+        <div class="admin-stats">
+          <div class="admin-stat"><span id="adminTotalProducts">0</span><small>Sản phẩm</small></div>
+          <div class="admin-stat"><span id="adminTotalBrands">0</span><small>Thương hiệu</small></div>
+          <div class="admin-stat"><span id="adminTotalStock">0</span><small>Tồn kho</small></div>
+          <div class="admin-stat"><span id="adminTotalValue">0đ</span><small>Giá trị hàng</small></div>
+        </div>
+
+        <div class="admin-tabs" role="tablist" aria-label="Quản trị">
+          <button class="admin-tab active" data-admin-panel="products">Sản phẩm</button>
+          <button class="admin-tab" data-admin-panel="brands">Hãng</button>
+          <button class="admin-tab" data-admin-panel="users">User</button>
+          <button class="admin-tab" data-admin-panel="revenue">Doanh thu & hóa đơn</button>
+        </div>
+
+        <div class="admin-grid admin-panel active" id="adminProductsPanel" data-admin-panel-id="products">
+          <form class="admin-form glass-card" id="adminProductForm">
+            <h3 id="adminFormTitle">Thêm sản phẩm</h3>
+            <input type="hidden" id="adminProductId" />
+            <div class="form-row">
+              <div class="form-group">
+                <label for="adminProductName">Tên sản phẩm</label>
+                <input id="adminProductName" type="text" placeholder="iPhone 16 Pro Max 256GB" required />
+              </div>
+              <div class="form-group">
+                <label for="adminProductBrand">Thương hiệu</label>
+                <select id="adminProductBrand">
+                  <option value="iphone">iPhone</option>
+                  <option value="samsung">Samsung</option>
+                  <option value="redmi">Redmi</option>
+                  <option value="poco">POCO</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="adminProductPrice">Giá bán</label>
+                <input id="adminProductPrice" type="number" min="0" step="10000" placeholder="24990000" required />
+              </div>
+              <div class="form-group">
+                <label for="adminProductOldPrice">Giá cũ</label>
+                <input id="adminProductOldPrice" type="number" min="0" step="10000" placeholder="27990000" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="adminProductRam">RAM</label>
+                <input id="adminProductRam" type="text" placeholder="8GB" />
+              </div>
+              <div class="form-group">
+                <label for="adminProductRom">Bộ nhớ</label>
+                <input id="adminProductRom" type="text" placeholder="256GB" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="adminProductChip">Chip</label>
+                <input id="adminProductChip" type="text" placeholder="A18 Pro" />
+              </div>
+              <div class="form-group">
+                <label for="adminProductStock">Tình trạng</label>
+                <select id="adminProductStock">
+                  <option value="Còn hàng">Còn hàng</option>
+                  <option value="Sắp hết">Sắp hết</option>
+                  <option value="Hết hàng">Hết hàng</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="adminProductStockCount">Số lượng</label>
+                <input id="adminProductStockCount" type="number" min="0" placeholder="20" />
+              </div>
+              <div class="form-group">
+                <label for="adminProductImage">Ảnh chính</label>
+                <input id="adminProductImage" type="text" placeholder="images/id1.png" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="adminProductCamera">Camera</label>
+              <input id="adminProductCamera" type="text" placeholder="48MP + 12MP" />
+            </div>
+            <div class="form-group">
+              <label for="adminProductScreen">Màn hình</label>
+              <input id="adminProductScreen" type="text" placeholder="6.7 inch OLED 120Hz" />
+            </div>
+            <div class="admin-form-actions">
+              <button type="submit" class="btn-primary"><span>Lưu sản phẩm</span></button>
+              <button type="button" class="btn-outline" id="adminCancelEdit">Hủy</button>
+            </div>
+          </form>
+
+          <div class="admin-table-wrap glass-card">
+            <div class="admin-table-toolbar">
+              <h3>Kho sản phẩm</h3>
+              <input id="adminSearch" type="text" placeholder="Tìm sản phẩm..." />
+            </div>
+            <div class="admin-table-scroll">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Sản phẩm</th>
+                    <th>Hãng</th>
+                    <th>Giá</th>
+                    <th>Tồn</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="adminProductRows"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-panel" id="adminBrandsPanel" data-admin-panel-id="brands">
+          <div class="admin-two-col">
+            <form class="admin-form glass-card" id="adminBrandForm">
+              <h3>Thêm / sửa hãng</h3>
+              <div class="form-group">
+                <label for="adminBrandName">Tên hãng</label>
+                <input id="adminBrandName" type="text" placeholder="Xiaomi" required />
+              </div>
+              <div class="form-group">
+                <label for="adminBrandLogo">Logo hãng</label>
+                <input id="adminBrandLogo" type="text" placeholder="images/xiaomi.png hoặc URL logo" />
+              </div>
+              <button class="btn-primary w-full" type="submit"><span>Lưu hãng</span></button>
+            </form>
+            <div class="admin-table-wrap glass-card">
+              <h3>Danh sách hãng</h3>
+              <div class="admin-table-scroll">
+                <table class="admin-table">
+                  <thead><tr><th>Hãng</th><th>Mã</th><th>Sản phẩm</th><th></th></tr></thead>
+                  <tbody id="adminBrandRows"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-panel" id="adminUsersPanel" data-admin-panel-id="users">
+          <div class="admin-two-col">
+            <form class="admin-form glass-card" id="adminUserForm">
+              <h3 id="adminUserFormTitle">Thêm user</h3>
+              <input type="hidden" id="adminUserId" />
+              <div class="form-group"><label for="adminUserName">Tên</label><input id="adminUserName" type="text" required /></div>
+              <div class="form-group"><label for="adminUserEmail">Email</label><input id="adminUserEmail" type="email" required /></div>
+              <div class="form-group"><label for="adminUserPhone">Số điện thoại</label><input id="adminUserPhone" type="text" /></div>
+              <div class="form-group"><label for="adminUserPassword">Mật khẩu</label><input id="adminUserPassword" type="text" placeholder="Để trống khi không đổi" /></div>
+              <div class="form-group">
+                <label for="adminUserRole">Vai trò</label>
+                <select id="adminUserRole"><option value="customer">Khách hàng</option><option value="admin">Admin</option></select>
+              </div>
+              <div class="admin-form-actions">
+                <button class="btn-primary" type="submit"><span>Lưu user</span></button>
+                <button class="btn-outline" type="button" id="adminCancelUserEdit">Hủy</button>
+              </div>
+            </form>
+            <div class="admin-table-wrap glass-card">
+              <h3>Danh sách user</h3>
+              <div class="admin-table-scroll">
+                <table class="admin-table">
+                  <thead><tr><th>User</th><th>Vai trò</th><th>Ngày tạo</th><th></th></tr></thead>
+                  <tbody id="adminUserRows"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-panel" id="adminRevenuePanel" data-admin-panel-id="revenue">
+          <div class="admin-revenue-grid">
+            <div class="admin-table-wrap glass-card">
+              <div class="admin-table-toolbar">
+                <h3>Doanh thu</h3>
+                <select id="adminRevenueRange">
+                  <option value="day">Theo ngày</option>
+                  <option value="month">Theo tháng</option>
+                  <option value="year">Theo năm</option>
+                </select>
+              </div>
+              <div class="revenue-cards">
+                <div class="admin-stat"><span id="adminRevenueSubtotal">0đ</span><small>Trước VAT</small></div>
+                <div class="admin-stat"><span id="adminRevenueVat">0đ</span><small>VAT</small></div>
+                <div class="admin-stat"><span id="adminRevenueTotal">0đ</span><small>Sau VAT</small></div>
+              </div>
+            </div>
+            <div class="admin-table-wrap glass-card">
+              <h3>Hóa đơn</h3>
+              <div class="admin-table-scroll">
+                <table class="admin-table">
+                  <thead><tr><th>Mã</th><th>Khách</th><th>Ngày</th><th>Tổng</th><th></th></tr></thead>
+                  <tbody id="adminOrderRows"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ===================== FOOTER ===================== -->
   <footer id="footer">
     <div class="footer-top">
@@ -514,6 +723,83 @@
     </div>
   </div>
 
+  <!-- ===================== AUTH MODAL ===================== -->
+  <div class="auth-overlay" id="authOverlay"></div>
+  <div class="auth-modal" id="authModal" role="dialog" aria-modal="true" aria-label="Tài khoản TechNova">
+    <button class="modal-close" id="authClose" aria-label="Đóng">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="auth-header">
+      <div class="nav-logo">
+        <span class="logo-tech">TECH</span><span class="logo-nova">NOVA</span><span class="logo-dot">.</span>
+      </div>
+      <p id="authSubtitle">Đăng nhập để lưu giỏ hàng và quản lý tài khoản.</p>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="loginTab" data-auth-tab="login">Đăng nhập</button>
+      <button class="auth-tab" id="registerTab" data-auth-tab="register">Đăng ký</button>
+    </div>
+    <form class="auth-form active" id="loginForm">
+      <div class="form-group">
+        <label for="loginEmail">Email hoặc SĐT</label>
+        <input id="loginEmail" type="text" placeholder="admin@technova.vn hoặc 0900000000" autocomplete="username" required />
+      </div>
+      <div class="form-group">
+        <label for="loginPassword">Mật khẩu</label>
+        <input id="loginPassword" type="password" placeholder="admin123" autocomplete="current-password" required />
+      </div>
+      <button class="btn-primary w-full" type="submit"><span>Đăng nhập</span></button>
+      <p class="auth-hint">Admin demo: admin@technova.vn / admin123</p>
+    </form>
+    <form class="auth-form" id="registerForm">
+      <div class="form-group">
+        <label for="registerName">Họ và tên</label>
+        <input id="registerName" type="text" placeholder="Nguyễn Văn A" autocomplete="name" required />
+      </div>
+      <div class="form-group">
+        <label for="registerEmail">Email</label>
+        <input id="registerEmail" type="email" placeholder="ban@example.com" autocomplete="email" required />
+      </div>
+      <div class="form-group">
+        <label for="registerPhone">Số điện thoại</label>
+        <input id="registerPhone" type="text" placeholder="090..." autocomplete="tel" />
+      </div>
+      <div class="form-group">
+        <label for="registerPassword">Mật khẩu</label>
+        <input id="registerPassword" type="password" placeholder="Tối thiểu 6 ký tự" autocomplete="new-password" required />
+      </div>
+      <button class="btn-primary w-full" type="submit"><span>Tạo tài khoản</span></button>
+    </form>
+    <div class="auth-user-card" id="authUserCard" hidden>
+      <div>
+        <strong id="authUserName"></strong>
+        <small id="authUserRole"></small>
+      </div>
+      <button class="btn-outline w-full" id="logoutBtn">Đăng xuất</button>
+    </div>
+  </div>
+
+  <!-- ===================== PAYMENT SUCCESS MODAL ===================== -->
+  <div class="success-overlay" id="successOverlay"></div>
+  <div class="success-modal" id="successModal" role="dialog" aria-modal="true" aria-label="Thanh toán thành công">
+    <button class="modal-close" id="successClose" aria-label="Đóng">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="success-icon">✓</div>
+    <h2>Thanh toán thành công</h2>
+    <p>Đơn hàng đã được lưu vào admin. VAT là dữ liệu ảo để demo hóa đơn.</p>
+    <div class="success-summary">
+      <div><span>Mã hóa đơn</span><strong id="successOrderId">--</strong></div>
+      <div><span>Tạm tính</span><strong id="successSubtotal">0đ</strong></div>
+      <div><span>VAT 10%</span><strong id="successVat">0đ</strong></div>
+      <div><span>Tổng cộng</span><strong id="successTotal">0đ</strong></div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn-buy" id="successPrintInvoice">In hóa đơn</button>
+      <button class="modal-btn-cart" id="successContinue">Tiếp tục mua hàng</button>
+    </div>
+  </div>
+
   <!-- ===================== TOAST NOTIFICATION ===================== -->
   <div class="toast" id="toast">
     <div class="toast-icon">✓</div>
@@ -525,6 +811,7 @@
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
   </button>
 
+  <script src="auth-admin.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
